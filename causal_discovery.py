@@ -43,7 +43,11 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 		df.set_index('timestamp', inplace=True)
 		columns_to_drop = ['timestamp']
 		df.drop(columns=[col for col in columns_to_drop if col in df.columns], inplace=True)
-		
+		# Variance for each column
+		variances = df.var()
+		mean_variance = variances.mean()
+		# Remove columns with variance less than mean
+		df = df.loc[:, df.var() > mean_variance]
 		
 		return df
 
