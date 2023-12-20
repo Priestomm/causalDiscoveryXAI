@@ -7,7 +7,7 @@ def parse_option():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', choices=['PCMCI', 'LPCMCI'], default='PCMCI', help='Choose between PCMCI and LPCMCI')
-    parser.add_argument('--dataset_name', choices=['boat', 'pepper', 'swat'], default='boat', help='Select the dataset: boat, pepper or swat')
+    parser.add_argument('--dataset_name', choices=['boat', 'pepper', 'swat'], default='pepper', help='Select the dataset: boat, pepper or swat')
     parser.add_argument('--assumption', choices=['linear', 'not_linear'], default='linear', help='Choose between parcorr and knn')
 
     return parser.parse_args()
@@ -30,8 +30,8 @@ def run(*kwargs):
     attack_df = attack_df.fillna(0)
 
     # remove 200 columns 
-    # normal_df = normal_df.iloc[:, :-200]
-    # attack_df = attack_df.iloc[:, :-200]
+    normal_df = normal_df.iloc[:, :-200]
+    attack_df = attack_df.iloc[:, :-200]
 
     # get var names 
     var_names_normal = list(normal_df.columns)

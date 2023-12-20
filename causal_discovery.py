@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt 
 import time 
 import pandas as pd 
@@ -158,6 +159,11 @@ def run_lpcmci(data, subset_size, assumption, var_names):
 
 ## plots/saves graphs type_ = normal/attack, mode = LPCMI/PCMCI
 def plot_and_extract_links(results, graph_name_prefix, var_names, dataset_name, type_, mode):
+	# if ./images_result/ doesn't exist, create it
+	try:
+		os.mkdir('./images_result')
+	except OSError as error:
+		pass
 	tp.plot_graph(
 		val_matrix=results['val_matrix'],
 		graph=results['graph'],
