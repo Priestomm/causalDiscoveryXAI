@@ -8,14 +8,15 @@ To get started with this project, follow the instructions below:
 
 1. Clone the repository.
 2. Install the required dependencies.
-3. Run the main script to perform causal discovery on your dataset.
+3. Download the datasets.
+4. Run the main script to perform causal discovery on your dataset.
 
 ## Datasets
 
 The project includes the following datasets:
 
 - Boat: Contains a CSV file with normal and anomaly data related to boat operations.
-- Peppet: Includes a CSV file with normal and anomaly data for the Peppet system.
+- Pepper: Includes a CSV file with normal and anomaly data for the Peppet system.
 - Swat: Consists of a CSV file with normal and anomaly data for the SWaT system.
 
 ## Contributing
