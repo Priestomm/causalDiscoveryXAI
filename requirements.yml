@@ -1,0 +1,9 @@
+dependencies:
+    - python 3.10 (maybe working also earlier versions...)
+    - numpy
+    - scipy
+    - scikit-learn
+    - matplotlib
+    - dcor
+    - pandas
+    - networkx
