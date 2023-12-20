@@ -50,8 +50,17 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 	elif dataset_name == 'boat':
 		## remove dumbas type columns
 		df = pd.read_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', delimiter=',')
-		df = df.drop(index=0) # Remove first row
-		df.to_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', index=False)
+		
+		# remove first row if it's a string
+		if isinstance(df.iloc[0, 0], str):
+			idxs = []
+			for idx, type_ in enumerate(df.iloc[0, :]):
+				if type_ == "String":
+					idxs.append(idx)
+
+			df = df.drop(df.columns[idxs], axis=1) # Remove string columns	
+			df = df.drop(index=0) # Remove first row
+			df.to_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', index=False)
 
 		with open('./boat_dataset/types.txt', 'r') as f:
 			lines = f.readlines()
@@ -63,19 +72,8 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 
 		df = pd.read_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', delimiter=',', dtype=types_dict)
 
-		types = types_dict.values()
-    	
-		idxs = []
-		for idx, type_ in enumerate(types):
-			if type_ == "String":
-				idxs.append(idx)
-
-
-		df = df.drop(df.columns[idxs], axis=1) # Remove string columns		
-		# df = df.drop(index=0) # Remove first row
 		
 		df = df.tail(SUBSET_SIZE)
-		# df = df.loc[:, (df != df.iloc[0]).any()]
 		df = df.dropna(axis=1, how='all')
 
 		if dataset_type == 'attack':
@@ -83,6 +81,10 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 			df['net_send_tstamp'] = pd.to_datetime(df['net_send_tstamp'], unit='ms')
 		if dataset_type == 'normal':
 			df['net_send_tstamp'] = pd.to_datetime(df['net_send_tstamp'], unit='ms')
+
+		# Cast all cell values to float
+		df = df.apply(pd.to_numeric, errors='coerce')
+
 
 		return df
 
