@@ -16,7 +16,7 @@ To get started with this project, follow the instructions below:
 The project includes the following datasets:
 
 - Boat: Contains a CSV file with normal and anomaly data related to boat operations.
-- Pepper: Includes a CSV file with normal and anomaly data for the Peppet system.
+- Pepper: Includes a CSV file with normal and anomaly data for the Pepper system.
 - Swat: Consists of a CSV file with normal and anomaly data for the SWaT system.
 
 ## Contributing
