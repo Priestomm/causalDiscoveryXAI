@@ -25,7 +25,7 @@ warnings.filterwarnings('ignore', category=ConstantInputWarning)
 
 SUBSET_SIZE = 1000
 ALPHA = 0.05
-PC_ALPHA = 0.05
+PC_ALPHA = 0.05 # variare per knn 0.01-0.05
 TAU_MAX = 2
 VERBOSITY = 0
 
@@ -122,46 +122,12 @@ def run_pcmci(data, subset_size, assumptions):
 	elif assumptions == 'not_linear':
 
 		start_time = time.time()
-		pcmci = PCMCI(dataframe=data, cond_ind_test=CMIknn(knn=5))
+		pcmci = PCMCI(dataframe=data, cond_ind_test=CMIknn(significance="fixed_thres", knn=5))
 		results = pcmci.run_pcmci(tau_max=TAU_MAX, pc_alpha=PC_ALPHA, alpha_level=ALPHA)
 		end_time = time.time()
 		print("------> Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2), "seconds")
 
 		return results
-
-## performs lpcmci algorithm with parcorr
-def run_lpcmci(data, subset_size, assumption, var_names):
-
-	if assumption == 'linear':
-
-		start_time = time.time()
-		lpcmci = LPCMCI(data, cond_ind_test=ParCorr())
-
-		## link assumptions
-		link_assumptions = {}
-		for j in range(len(var_names)):
-			if j in var_names:
-				link_assumptions[j] = {(var, -lag): '-?>' for var in var_names for lag in range(1, TAU_MAX)}
-				link_assumptions[j].update({(var, 0): 'o?o' for var in var_names if var != j})
-			else:
-				link_assumptions[j] = {}
-
-		results = lpcmci.run_lpcmci(tau_max=TAU_MAX, link_assumptions=link_assumptions, pc_alpha=PC_ALPHA) ## link assumptions?
-		end_time = time.time()
-		print("------> Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2))
-
-		return results 
-	
-	elif assumption == 'not_linear':
-
-		start_time = time.time()
-		lpcmci = LPCMCI(data, cond_ind_test=CMIknn(knn=5))
-		results = lpcmci.run_lpcmci(tau_max=TAU_MAX, pc_alpha=PC_ALPHA) ## link assumptions?
-		end_time = time.time()
-		print("------> Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2))
-		
-		return results
-
 
 ## plots/saves graphs type_ = normal/attack, mode = LPCMI/PCMCI
 def plot_and_extract_links(results, graph_name_prefix, var_names, dataset_name, type_, mode):
