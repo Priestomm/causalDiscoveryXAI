@@ -17,7 +17,7 @@ from tigramite.pcmci import PCMCI
 from tigramite.lpcmci import LPCMCI
 from tigramite.independence_tests.parcorr import ParCorr
 from tigramite.independence_tests.cmiknn import CMIknn
-
+from tigramite.independence_tests.gpdc import GPDC
 
 from scipy.stats import ConstantInputWarning
 from zmq import SUB
@@ -118,6 +118,17 @@ def run_pcmci(data, subset_size, assumptions):
 		print("Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2), "seconds")
 
 		return results
+	
+	elif assumptions == 'parametric':
+		
+		start_time = time.time()
+		pcmci = PCMCI(dataframe=data, cond_ind_test=GPDC(significance='analytic', gp_params=None), verbosity=VERBOSITY)
+		results = pcmci.run_pcmci(tau_max=TAU_MAX, pc_alpha=PC_ALPHA, alpha_level=ALPHA)
+		end_time = time.time()
+		print("Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2), "seconds")
+
+		return results
+
 
 	elif assumptions == 'not_linear':
 
@@ -157,8 +168,6 @@ def discovery(data, SUBSET_SIZE, dataset_type, var_names, dataset_name, assumpti
 
 	if mode == 'PCMCI':
 		results = run_pcmci(data, SUBSET_SIZE, assumption)
-	elif mode == 'LPCMCI':
-		results = run_lpcmci(data, SUBSET_SIZE, assumption, var_names)
 	
 	if results != None:
 		print("Performing plot_and_extract_links function...")

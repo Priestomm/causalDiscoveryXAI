@@ -6,9 +6,9 @@ from causal_discovery import *
 def parse_option():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', choices=['PCMCI', 'LPCMCI'], default='PCMCI', help='Choose between PCMCI and LPCMCI')
+    parser.add_argument('--mode', choices=['PCMCI'], default='PCMCI')
     parser.add_argument('--dataset_name', choices=['boat', 'pepper', 'swat'], default='pepper', help='Select the dataset: boat, pepper or swat')
-    parser.add_argument('--assumption', choices=['linear', 'not_linear'], default='not_linear', help='Choose between parcorr and knn')
+    parser.add_argument('--assumption', choices=['linear', 'parametric', 'not_linear'], default='parametric', help='Choose between parcorr, gpdc and knn')
 
     return parser.parse_args()
 
