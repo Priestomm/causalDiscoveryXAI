@@ -19,11 +19,20 @@ from tigramite.independence_tests.parcorr import ParCorr
 from tigramite.independence_tests.cmiknn import CMIknn
 from tigramite.independence_tests.gpdc import GPDC
 
+from sklearn.gaussian_process.kernels import (RBF, ExpSineSquared, 
+                                              RationalQuadratic, WhiteKernel)
+from sklearn.gaussian_process import GaussianProcessRegressor as GPR
+import numpy as np
+
+
 from scipy.stats import ConstantInputWarning
+from scipy.fft import fft, fftfreq
+from scipy.signal import find_peaks
 from zmq import SUB
 warnings.filterwarnings('ignore', category=ConstantInputWarning)
 
 SUBSET_SIZE = 1000
+#ALPHA = 0.00001
 ALPHA = 0.05
 PC_ALPHA = 0.05 # variare per knn 0.01-0.05
 TAU_MAX = 2
@@ -36,23 +45,25 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 
 		df = pd.read_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', delimiter=',')
 		df = df.drop(index=0) # Remove first row
-		df = df.tail(SUBSET_SIZE)
-		df = df.loc[:, (df != df.iloc[0]).any()]
-		df = df.dropna(axis=1, how='all')
-		df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
-		df.set_index('timestamp', inplace=True)
+		df = df.loc[:, (df != df.iloc[0]).any()] # Remove near constant columns
+		df = df.dropna(axis=1, how='all') # Drop columns that are entirely NaN
+		df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s') # Convert timestamp to datetime
+		df.set_index('timestamp', inplace=True) # Set timestamp as index
 		columns_to_drop = ['timestamp']
 		df.drop(columns=[col for col in columns_to_drop if col in df.columns], inplace=True)
-		# Variance for each column
-		variances = df.var()
-		mean_variance = variances.mean()
-		# Remove columns with variance less than mean
-		df = df.loc[:, df.var() > mean_variance]
+
+		# cast all cell values to float
+		df = df.apply(pd.to_numeric, errors='coerce')
+
+		# Variance for each column and keep the 50 largest
+		variances = df.var().nlargest(50)
+		df = df[variances.index]
+
+		df = sample_rows(df, 100)
 		
 		return df
 
 	elif dataset_name == 'boat':
-		## remove dumbas type columns
 		df = pd.read_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', delimiter=',')
 		
 		# remove first row if it's a string
@@ -65,29 +76,18 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 			df = df.drop(df.columns[idxs], axis=1) # Remove string columns	
 			df = df.drop(index=0) # Remove first row
 			df.to_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', index=False)
-
-		with open('./boat_dataset/types.txt', 'r') as f:
-			lines = f.readlines()
-
-		types_dict = {}
-		for line in lines:
-			key, value = line.strip().split()
-			types_dict[key] = value
-
-		df = pd.read_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', delimiter=',', dtype=types_dict)
-
 		
-		df = df.tail(SUBSET_SIZE)
 		df = df.dropna(axis=1, how='all')
 
 		if dataset_type == 'attack':
 			df['net_rec_tstamp'] = pd.to_datetime(df['net_rec_tstamp'], unit='ms')
-			df['net_send_tstamp'] = pd.to_datetime(df['net_send_tstamp'], unit='ms')
 		if dataset_type == 'normal':
 			df['net_send_tstamp'] = pd.to_datetime(df['net_send_tstamp'], unit='ms')
 
 		# Cast all cell values to float
 		df = df.apply(pd.to_numeric, errors='coerce')
+
+		df = sample_rows(df, 50)
 
 
 		return df
@@ -103,6 +103,8 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 		df.set_index('Timestamp', inplace=True)
 		columns_to_drop = [' Timestamp', 'Normal/Attack']
 		df.drop(columns=[col for col in columns_to_drop if col in df.columns], inplace=True)
+
+		df = sample_rows(df, 50)
 
 		return df
 
@@ -122,6 +124,8 @@ def run_pcmci(data, subset_size, assumptions):
 	elif assumptions == 'parametric':
 		
 		start_time = time.time()
+		#noise_kernel = 0.1**2 * RBF(length_scale=0.1, length_scale_bounds=(1e-2,1e7)) + WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-5, 1e5))
+		#pcmci = PCMCI(dataframe=data, cond_ind_test=GPDC(significance='analytic', gp_params={"kernel":noise_kernel}), verbosity=VERBOSITY)
 		pcmci = PCMCI(dataframe=data, cond_ind_test=GPDC(significance='analytic', gp_params=None), verbosity=VERBOSITY)
 		results = pcmci.run_pcmci(tau_max=TAU_MAX, pc_alpha=PC_ALPHA, alpha_level=ALPHA)
 		end_time = time.time()
@@ -136,7 +140,7 @@ def run_pcmci(data, subset_size, assumptions):
 		pcmci = PCMCI(dataframe=data, cond_ind_test=CMIknn(significance="fixed_thres", knn=5))
 		results = pcmci.run_pcmci(tau_max=TAU_MAX, pc_alpha=PC_ALPHA, alpha_level=ALPHA)
 		end_time = time.time()
-		print("------> Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2), "seconds")
+		print("Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2), "seconds")
 
 		return results
 
@@ -175,3 +179,40 @@ def discovery(data, SUBSET_SIZE, dataset_type, var_names, dataset_name, assumpti
 	else:
 		print("Results are None...")
 
+def sample_rows(df, freq_rate):
+    freq_cols = {}
+    top_components = 5
+
+    # Apply Fourier transform to each column
+    for col_name in df.columns:
+        column_data = df[col_name].values
+
+        # Calculate the Fourier transform
+        fft_result = fft(column_data)
+        frequencies = fftfreq(len(fft_result))
+
+        # Find the peaks in the Fourier transform
+        peaks, _ = find_peaks(np.abs(fft_result), height=10)
+
+        # Select the top 5 peaks (or fewer, if there are fewer than 5 peaks)
+        selected_peaks = peaks[np.argsort(np.abs(fft_result[peaks]))[::-1][:top_components]]
+
+        # Retrieve the frequencies and amplitudes of the selected peaks
+        selected_frequencies = frequencies[selected_peaks]
+        selected_amplitudes = np.abs(fft_result[selected_peaks])
+        freq_cols[col_name] = (selected_frequencies, selected_amplitudes)
+
+    # Take the maximum among all frequencies
+    max_freq = 0
+    for col_name in freq_cols:
+        if (len(freq_cols[col_name][0]) == 0):
+            continue
+        freqs, amps = freq_cols[col_name]
+        max_freq = max(max_freq, max(freqs))
+
+    sr = max_freq * freq_rate
+
+    # Sample the rows of df with a sampling frequency of sr
+    df = df.iloc[::int(sr), :]
+
+    return df
