@@ -79,16 +79,17 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 		
 		df = df.dropna(axis=1, how='all')
 
-		if dataset_type == 'attack':
-			df['net_rec_tstamp'] = pd.to_datetime(df['net_rec_tstamp'], unit='ms')
-		if dataset_type == 'normal':
-			df['net_send_tstamp'] = pd.to_datetime(df['net_send_tstamp'], unit='ms')
+		# remove net_rec_tstamp if exists
+		if 'net_rec_tstamp' in df.columns:
+			df = df.drop(columns=['net_rec_tstamp'])
+
+		df['net_send_tstamp'] = pd.to_datetime(df['net_send_tstamp'], unit='ms')
+		df.set_index('net_send_tstamp', inplace=True)
 
 		# Cast all cell values to float
 		df = df.apply(pd.to_numeric, errors='coerce')
 
-		df = sample_rows(df, 50)
-
+		df = sample_rows(df, 5)
 
 		return df
 
