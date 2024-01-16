@@ -14,14 +14,8 @@ from typing import TypeAlias
 from tigramite import data_processing as pp
 from tigramite import plotting as tp 
 from tigramite.pcmci import PCMCI
-from tigramite.lpcmci import LPCMCI
 from tigramite.independence_tests.parcorr import ParCorr
 from tigramite.independence_tests.cmiknn import CMIknn
-from tigramite.independence_tests.gpdc import GPDC
-
-from sklearn.gaussian_process.kernels import (RBF, ExpSineSquared, 
-                                              RationalQuadratic, WhiteKernel)
-from sklearn.gaussian_process import GaussianProcessRegressor as GPR
 import numpy as np
 
 
@@ -33,8 +27,8 @@ warnings.filterwarnings('ignore', category=ConstantInputWarning)
 
 SUBSET_SIZE = 1000
 #ALPHA = 0.00001
-ALPHA = 0.05
-PC_ALPHA = 0.05 # variare per knn 0.01-0.05
+ALPHA = 0.1
+PC_ALPHA = 0.03
 TAU_MAX = 2
 VERBOSITY = 0
 
@@ -96,7 +90,6 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 	elif dataset_name == 'swat':
 
 		df = pd.read_csv(f'./{dataset_name}_dataset/{dataset_type}.csv', delimiter=';')
-		df = df.tail(SUBSET_SIZE)
 		df = df.loc[:, (df != df.iloc[0]).any()] # Remove near constant columns
 		df = df.dropna(axis=1, how='all') # Drop columns that are entirely NaN
 		df['Timestamp'] = df[' Timestamp'].str.strip()
@@ -105,7 +98,7 @@ def read_preprocess_data(dataset_name, dataset_type, SUBSET_SIZE=SUBSET_SIZE):
 		columns_to_drop = [' Timestamp', 'Normal/Attack']
 		df.drop(columns=[col for col in columns_to_drop if col in df.columns], inplace=True)
 
-		df = sample_rows(df, 50)
+		df = sample_rows(df, 5000)
 
 		return df
 
@@ -118,30 +111,17 @@ def run_pcmci(data, subset_size, assumptions):
 		pcmci = PCMCI(dataframe=data, cond_ind_test=ParCorr(), verbosity=VERBOSITY)
 		results = pcmci.run_pcmci(tau_max=TAU_MAX, pc_alpha=PC_ALPHA, alpha_level=ALPHA)
 		end_time = time.time()
-		print("Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2), "seconds")
+		print("Time taken for PMCI with subset size", round(end_time - start_time, 2), "seconds")
 
 		return results
-	
-	elif assumptions == 'parametric':
-		
-		start_time = time.time()
-		#noise_kernel = 0.1**2 * RBF(length_scale=0.1, length_scale_bounds=(1e-2,1e7)) + WhiteKernel(noise_level=0.1**2, noise_level_bounds=(1e-5, 1e5))
-		#pcmci = PCMCI(dataframe=data, cond_ind_test=GPDC(significance='analytic', gp_params={"kernel":noise_kernel}), verbosity=VERBOSITY)
-		pcmci = PCMCI(dataframe=data, cond_ind_test=GPDC(significance='analytic', gp_params=None), verbosity=VERBOSITY)
-		results = pcmci.run_pcmci(tau_max=TAU_MAX, pc_alpha=PC_ALPHA, alpha_level=ALPHA)
-		end_time = time.time()
-		print("Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2), "seconds")
-
-		return results
-
 
 	elif assumptions == 'not_linear':
 
 		start_time = time.time()
-		pcmci = PCMCI(dataframe=data, cond_ind_test=CMIknn(significance="fixed_thres", knn=5))
+		pcmci = PCMCI(dataframe=data, cond_ind_test=CMIknn(significance="fixed_thres", knn=10))
 		results = pcmci.run_pcmci(tau_max=TAU_MAX, pc_alpha=PC_ALPHA, alpha_level=ALPHA)
 		end_time = time.time()
-		print("Time taken for PMCI with subset size", subset_size, "-", round(end_time - start_time, 2), "seconds")
+		print("Time taken for PMCI:", round(end_time - start_time, 2), "seconds")
 
 		return results
 
